@@ -1,0 +1,27 @@
+[project]
+name = "voice-memos-skill"
+version = "0.1.0"
+description = "Inspect and export local macOS Apple Voice Memos"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+voice-memos = "voice_memos_skill.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+voice_memos_skill = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
