@@ -4,7 +4,7 @@
 
 `voice-memos-skill` (public GitHub repository: `grapeot/voice-memos-skill`) is a small, standalone MIT-licensed Python CLI (`voice-memos` / `python -m voice_memos_skill`) and AI agent skill (`skills/voice-memos/SKILL.md`) for inspecting and exporting local macOS Apple Voice Memos.
 
-> **Current Status:** Core CLI (`src/voice_memos_skill/{__init__,__main__,cli,store}.py`) and offline synthetic `pytest` suite (`tests/`) are implemented and verified locally on a feature branch. `master` is protected (pull request required, `0` approvals, `enforce_admins=true`, and Linux/macOS CI checks required); remote CI execution and PR merge for the implementation branch are pending.
+> **Current Status:** Core CLI implemented; local tests, cross-platform CI, and read-only macOS metadata smoke verified. `master` is protected (pull request required, `0` approvals, `enforce_admins=true`, and Linux/macOS CI checks required).
 
 ## Core Scope Discipline
 

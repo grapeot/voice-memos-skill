@@ -1,6 +1,6 @@
 # Product Requirements Document (PRD) — Voice Memos Skill
 
-> **Status:** Implemented (Core CLI & Local Verification Complete; Remote CI & PR Merge Pending)
+> **Status:** Core CLI implemented; local tests, cross-platform CI, and read-only macOS metadata smoke verified
 > **Repository:** `grapeot/voice-memos-skill` (Public, MIT License)
 
 ## 1. Problem Statement

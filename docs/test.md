@@ -1,9 +1,9 @@
 # Test & Verification Plan — Voice Memos Skill
 
-> **Status:** Implemented & Locally Verified (Offline Synthetic `pytest` Suite + Read-Only macOS Smoke Check Complete; Remote CI Run Pending)
+> **Status:** Core CLI implemented; local tests, cross-platform CI, and read-only macOS metadata smoke verified
 > **Test Runner:** `python -m pytest` (offline, zero network access)
 
-The offline synthetic `pytest` suite in `tests/` is implemented and passes locally via `uv` (`python -m pytest`), exercising both `python -m voice_memos_skill` and the `voice-memos` console script entry point against synthetic SQLite databases and synthetic `.m4a` / `.qta` byte fixtures. Additional targeted JSON error-handling test review may add cases over time, so documentation tracks behavioral coverage rather than a hardcoded test count.
+The offline synthetic `pytest` suite in `tests/` (16 test cases, including 3 targeted error-handling regressions) is implemented and passes locally via `uv` (`python -m pytest`) as well as in Linux and macOS GitHub Actions CI, exercising both `python -m voice_memos_skill` and the `voice-memos` console script entry point against synthetic SQLite databases and synthetic `.m4a` / `.qta` byte fixtures.
 
 ## 1. Testing Philosophy & Fixture Rules
 
@@ -81,13 +81,19 @@ The offline synthetic `pytest` suite in `tests/` is implemented and passes local
 - **Setup:** Snapshot `CloudRecordings.db` and media files inside `--source` before and after running `doctor`, `list`, `get`, and `export`.
 - **Verified Behavior:** Source application data (`CloudRecordings.db` and media files) is never mutated. Note that when SQLite opens a live WAL-mode database in read-only mode (`mode=ro`), OS/SQLite shared-memory bookkeeping in `CloudRecordings.db-shm` is managed by the OS/SQLite runtime; read-only verification therefore checks that `CloudRecordings.db` and media files remain unchanged rather than assuming a live `-shm` file hash never changes.
 
+### 2.12 Targeted Error-Handling Regressions (Timezone, Source Access & SQLite Error Detail)
+- **Setup & Verified Behavior (3 regression cases):**
+  - **Invalid path-like `--timezone` arguments:** Passing a path-like invalid timezone value returns a structured JSON error envelope (exit code `2`) instead of an unhandled Python traceback.
+  - **Unreadable audio source hash `OSError`:** When hashing an unreadable source audio file raises `OSError`, the CLI returns a structured JSON error envelope instead of an unhandled traceback.
+  - **Underlying SQLite error detail preservation:** Database open and query errors preserve the underlying `sqlite3` error detail in the structured JSON error output.
+
 ## 3. Continuous Integration (GitHub Actions)
 
 GitHub Actions is configured in `.github/workflows/` to run the offline `pytest` suite across:
 - `ubuntu-latest` (Python 3.11+)
 - `macos-latest` (Python 3.11+)
 
-Both checks are configured as required status checks on `master`. During initial scaffold CI, `astral-sh/setup-uv` with `python-version` already created `.venv`, causing a subsequent explicit `uv venv` step to fail; the implementation workflow removes the duplicate environment creation and runs `pytest` unconditionally. Cross-platform CI execution for the implementation branch is pending the remote push and pull request run.
+Both checks are configured as required status checks on `master`. During initial scaffold CI, `astral-sh/setup-uv` with `python-version` already created `.venv`, causing a subsequent explicit `uv venv` step to fail; the implementation workflow removes the duplicate environment creation and runs `pytest` unconditionally. Both platform checks (`ubuntu-latest` and `macos-latest`) passed for implementation commit `ba8c07a` (GitHub Actions runs `39047912407` and `39047920607`, 16 `pytest` cases each).
 
 No network access or macOS TCC permissions are required in CI because all CI tests run against synthetic SQLite databases and temporary directories.
 

@@ -2,7 +2,7 @@
 
 A lightweight, read-safe Python CLI and AI agent skill for inspecting and exporting local macOS Apple Voice Memos (`CloudRecordings.db` and native `.m4a` / `.qta` media).
 
-> **Project Status:** The core CLI (`doctor`, `list`, `get`, `export`) and offline synthetic `pytest` suite are implemented and verified locally (editable `uv` install, `voice-memos` and `python -m voice_memos_skill` entry points, synthetic SQLite/audio test suite, and read-only macOS smoke checks). The implementation is on a local feature branch pending remote CI execution and pull request merge to `master`.
+> **Project Status:** Core CLI implemented; local tests, cross-platform CI, and read-only macOS metadata smoke verified.
 
 ## Why This Tool Exists
 

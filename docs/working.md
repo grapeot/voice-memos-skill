@@ -1,6 +1,6 @@
 # Working Status & Engineering Log — Voice Memos Skill
 
-> **Current Status:** Phase 2 Core CLI & Local Verification Completed — Pending Remote Implementation CI & Pull Request Merge
+> **Current Status:** Core CLI implemented; local tests, cross-platform CI, and read-only macOS metadata smoke verified
 
 ## Roadmap & Checklist
 
@@ -15,12 +15,12 @@
 - [x] **Phase 2: Core CLI & Test Suite Implementation**
   - [x] `pyproject.toml` and `src/voice_memos_skill/` package (`__init__.py`, `__main__.py`, `cli.py`, `store.py`; entry points `voice-memos` & `python -m voice_memos_skill`)
   - [x] Read-only SQLite repository layer, path containment, and `doctor` / `list` / `get` / `export` commands
-  - [x] Offline synthetic `pytest` suite covering all contract cases in `docs/test.md` (passing locally; targeted JSON error-handling test review in progress)
+  - [x] Offline synthetic `pytest` suite (16 cases, including 3 targeted error-handling regressions) covering all contract cases in `docs/test.md`
   - [x] Read-only macOS live container smoke verification (`doctor`, `list`, `get`, deleted-with-local-file `export` rejection with exit code `4`, and unchanged main `CloudRecordings.db` SHA-256 hash; live active-audio export not validated because active rows on the machine were `not_local`)
-- [ ] **Phase 3: CI & Public Release**
+- [x] **Phase 3: CI & Public Release**
   - [x] Public GitHub repository (`grapeot/voice-memos-skill`) created and `master` branch protection configured (PR required, `0` approvals, `enforce_admins=true`, and Linux/macOS status checks required)
   - [x] GitHub Actions workflow configured for `ubuntu-latest` and `macos-latest` (removed duplicate `uv venv` step and enabled unconditional `pytest` execution)
-  - [ ] Commit/push local feature branch, run remote cross-platform implementation CI, and merge pull request to `master`
+  - [x] Implementation feature branch published as PR#1; local suite and Linux/macOS CI passed
 
 ## Changelog
 
@@ -30,6 +30,7 @@
 - Completed read-only macOS smoke verification against the live Voice Memos container: `doctor`, `list`, and `get` succeeded, deleted recordings with leftover local audio files on disk were rejected by `export` with exit code `4`, and the main `CloudRecordings.db` SHA-256 hash remained unchanged. Active recordings on the test machine had no local audio files (`not_local`), so live active-audio export was not validated on real data (byte-accurate export is validated via synthetic fixtures).
 - Configured public GitHub repository `grapeot/voice-memos-skill` with `master` branch protection (`0` approvals, `enforce_admins=true`, required `ubuntu-latest` and `macos-latest` checks). Fixed the GitHub Actions workflow after scaffold CI failed because `astral-sh/setup-uv` with `python-version` already created `.venv` before a second `uv venv` call; removed duplicate environment creation and configured `pytest` to run unconditionally. Remote CI run and PR merge for the feature branch remain pending.
 - Updated repository documentation (`README.md`, `AGENTS.md`, `docs/prd.md`, `docs/rfc.md`, `docs/test.md`, `docs/working.md`, `skills/voice-memos/SKILL.md`) to reflect the implemented CLI and exact verification scope.
+- Completed targeted error-handling review and fixed invalid path-like `--timezone` arguments returning a traceback, unreadable audio source hash `OSError` returning a traceback, and preservation of underlying SQLite error detail; added 3 regression cases (16 `pytest` cases total, all passing locally) with no feature additions. Opened GitHub PR #1 (`https://github.com/grapeot/voice-memos-skill/pull/1`, currently open and to be merged after final documentation checks pass); cross-platform CI for implementation commit `ba8c07a` passed on both `ubuntu-latest` and `macos-latest` (GitHub runs `39047912407` and `39047920607`).
 
 ### 2026-10-17 — Phase 1 Specification Scaffold
 - Created initial documentation scaffold (`README.md`, `AGENTS.md`, `docs/prd.md`, `docs/rfc.md`, `docs/test.md`, `docs/working.md`, `skills/voice-memos/SKILL.md`) establishing the exact CLI, SQLite schema, JSON output, and test contracts prior to code implementation.
