@@ -1,13 +1,13 @@
 # Technical Specification (RFC) — Voice Memos Skill
 
-> **Status:** Phase 1 Implementation Contract (Pre-Implementation Specification)
+> **Status:** Implemented (`src/voice_memos_skill/{__init__,__main__,cli,store}.py`)
 > **Runtime:** Python 3.11+ (Standard Library Only)
 
 ## 1. Architecture Overview
 
 `voice_memos_skill` is a single-package Python CLI with zero third-party runtime dependencies. It reads macOS Apple Voice Memos metadata from `CloudRecordings.db` using Python's built-in `sqlite3` module, resolves local audio file metadata within the configured `--source` directory, and optionally copies active local audio files to a destination directory during `export`.
 
-No Objective-C bridge or runtime Apple private framework loading is used. Instead, the CLI queries the documented `ZCLOUDRECORDING` SQLite table directly and fails explicitly if required columns are missing.
+No Objective-C bridge or runtime Apple private framework loading is used. Instead, the CLI queries the observed `ZCLOUDRECORDING` SQLite table directly (an undocumented private Apple Core Data schema) and fails explicitly if required columns are missing.
 
 ## 2. Apple Voice Memos Storage & Schema Authority
 

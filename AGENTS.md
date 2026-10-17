@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-`voice-memos-skill` (target GitHub repository: `grapeot/voice-memos-skill`) is a small, standalone MIT-licensed Python CLI (`voice-memos` / `python -m voice_memos_skill`) and AI agent skill (`skills/voice-memos/SKILL.md`) for inspecting and exporting local macOS Apple Voice Memos.
+`voice-memos-skill` (public GitHub repository: `grapeot/voice-memos-skill`) is a small, standalone MIT-licensed Python CLI (`voice-memos` / `python -m voice_memos_skill`) and AI agent skill (`skills/voice-memos/SKILL.md`) for inspecting and exporting local macOS Apple Voice Memos.
 
-> **Current Phase:** Phase 1 (Documentation & Specification Scaffold). The documents in this repository define the implementation contract before Phase 2 code and test implementation. Do not describe the CLI or test suite as already implemented or passing until Phase 2 is completed.
+> **Current Status:** Core CLI implemented; local tests, cross-platform CI, and read-only macOS metadata smoke verified. `master` is protected (pull request required, `0` approvals, `enforce_admins=true`, and Linux/macOS CI checks required).
 
 ## Core Scope Discipline
 
@@ -21,17 +21,21 @@ Keep the project minimal and focused on its exact contract:
 .
 ├── README.md                  # User-facing overview and CLI quickstart
 ├── AGENTS.md                  # Contributor rules, dev workflow, and privacy hygiene
+├── pyproject.toml             # Package metadata and entry point configuration
+├── .github/
+│   └── workflows/             # Cross-platform CI workflow (ubuntu-latest, macos-latest)
 ├── docs/
 │   ├── prd.md                 # Product requirements and scope boundaries
-│   └── rfc.md                 # Technical design, SQLite schema, JSON & exit code contract
-│   ├── test.md                # Test plan (synthetic fixtures, CI, optional local smoke test)
+│   ├── rfc.md                 # Technical design, SQLite schema, JSON & exit code contract
+│   ├── test.md                # Test plan & verification scope (synthetic fixtures, CI, smoke check)
 │   └── working.md             # Task status, Changelog, and Lessons Learned
-└── skills/
-    └── voice-memos/
-        └── SKILL.md           # Single root skill for AI coding agents
+├── skills/
+│   └── voice-memos/
+│       └── SKILL.md           # Single root skill for AI coding agents
+├── src/
+│   └── voice_memos_skill/     # Core CLI implementation (__init__.py, __main__.py, cli.py, store.py)
+└── tests/                     # Offline synthetic pytest suite
 ```
-
-During Phase 2 implementation, add only the minimal package structure (`pyproject.toml`, `src/voice_memos_skill/`, `tests/`, and `.github/workflows/`).
 
 ## Python Environment & Commands
 
