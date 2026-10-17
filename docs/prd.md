@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD) — Voice Memos Skill
 
-> **Status:** Phase 1 Implementation Contract (Pre-Implementation Specification)
-> **Target Repository:** `grapeot/voice-memos-skill` (MIT License)
+> **Status:** Implemented (Core CLI & Local Verification Complete; Remote CI & PR Merge Pending)
+> **Repository:** `grapeot/voice-memos-skill` (Public, MIT License)
 
 ## 1. Problem Statement
 
@@ -19,7 +19,7 @@ Users and AI agents trying to list or export Voice Memos face three recurring pr
 1. **Authoritative metadata inspection:** Read `CloudRecordings.db` (`ZCLOUDRECORDING`) in read-only mode with full SQLite WAL visibility and determine `state` (`active` vs. `deleted`) strictly from `ZEVICTIONDATE`.
 2. **Independent media availability reporting:** Report `audio.availability` (`local` vs. `not_local`) independently from `state`, so callers can see whether a file is present on disk without confusing disk residue for an active recording.
 3. **Safe native audio export:** Copy locally available `.m4a` / `.qta` files for `active` recordings to a user-specified `--output-dir` with size and SHA-256 verification, refusing `deleted` or `not_local` recordings and refusing to overwrite differing existing files.
-4. **Machine-readable CLI contract:** Emit a uniform JSON envelope to `stdout` on both success and failure, write diagnostics only to `stderr`, and return deterministic exit codes (`0`, `2`, `3`, `4`, `5`).
+4. **Machine-readable CLI contract:** Emit a uniform JSON envelope to `stdout` on both success and failure (except `--help` and `--version`), write diagnostics only to `stderr`, and return deterministic exit codes (`0`, `2`, `3`, `4`, `5`).
 5. **Single-skill agent ergonomics:** Provide one concise root skill (`skills/voice-memos/SKILL.md`) that AI coding agents (Codex, Claude Code, Cursor, OpenCode) can install and invoke without multi-step ceremony.
 
 ## 3. Non-Goals (Out of Scope)
@@ -51,10 +51,10 @@ To keep the tool small, reliable, and audit-friendly, the following are explicit
 | `get` | Fetch normalized metadata and local file availability for a single `recording_id` (`active` or `deleted`) | Read-only | No |
 | `export` | Copy native local audio for an `active` recording to `--output-dir` (or preview with `--dry-run`) | Read-only | Yes (unless `--dry-run`) |
 
-## 6. Acceptance Criteria (Contract for Phase 2)
+## 6. Acceptance Criteria
 
 1. Root flags (`--source`, `--db`, `--version`) are accepted before the subcommand on both `voice-memos` and `python -m voice_memos_skill`.
 2. Deleted recordings (`ZEVICTIONDATE IS NOT NULL`) with local audio files still on disk are excluded from default `voice-memos list`, inspectable via `voice-memos list --state deleted|all` and `voice-memos get <id>`, and rejected by `voice-memos export <id>` with exit code `4`.
 3. Active recordings whose audio file is absent on disk report `state: "active"` and `audio.availability: "not_local"`, and are rejected by `voice-memos export <id>` with exit code `4`.
 4. Exporting an active local recording twice to the same `--output-dir` returns `status: "exported"` on the first run and `status: "already_exists"` on the second run (both exit `0`), while a differing pre-existing destination file fails with exit code `5`.
-5. Source database and media files remain byte-for-byte unchanged across all commands.
+5. Source application data (`CloudRecordings.db` and media files) is never mutated across any command.

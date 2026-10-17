@@ -5,8 +5,6 @@ description: List, inspect, and export local macOS Apple Voice Memos (including 
 
 # Apple Voice Memos Skill (`voice-memos`)
 
-> **Status Note:** In Phase 1 (pre-implementation scaffold), the interface below defines the implementation contract for `voice-memos`.
-
 ## Goal & Success Criteria
 
 Inspect and export local macOS Apple Voice Memos deterministically without mutating the source container or accidentally ingesting deleted recordings whose audio files still remain on disk.
@@ -14,7 +12,7 @@ Inspect and export local macOS Apple Voice Memos deterministically without mutat
 An operation succeeds when:
 1. Metadata and lifecycle state (`active` vs. `deleted`) are read from `CloudRecordings.db` (`ZCLOUDRECORDING.ZEVICTIONDATE`) via `voice-memos`, never by globbing `.m4a` files in the container directory.
 2. Exported audio files come only from `active` recordings with `audio.availability == "local"`, copied into an explicit `--output-dir` in their native `.m4a` / `.qta` format with verified byte size and SHA-256 digest.
-3. The Voice Memos source directory (`~/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings`) remains untouched.
+3. The Voice Memos source application data (`CloudRecordings.db` and media files in `~/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings`) remains untouched.
 
 ## Critical Pitfall: On-Disk Residue vs. Deleted State
 
@@ -76,7 +74,7 @@ voice-memos --source /path/to/Recordings --db /path/to/CloudRecordings.db doctor
 
 ## Output Envelope & Exit Codes
 
-All commands print a single JSON envelope to `stdout` (`{"command": "...", "data": {...}, "error": null}` on success, or `{"command": "...", "data": null, "error": {"code": "...", "message": "..."}}` on failure), with diagnostics on `stderr`.
+All commands (except `--help` and `--version`) print a single JSON envelope to `stdout` (`{"command": "...", "data": {...}, "error": null}` on success, or `{"command": "...", "data": null, "error": {"code": "...", "message": "..."}}` on failure), with diagnostics on `stderr`.
 
 - `0`: Success (including empty `list`, `export --dry-run`, or byte-identical `already_exists`)
 - `2`: Invalid CLI arguments / flag values

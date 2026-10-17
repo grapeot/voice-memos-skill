@@ -2,7 +2,7 @@
 
 A lightweight, read-safe Python CLI and AI agent skill for inspecting and exporting local macOS Apple Voice Memos (`CloudRecordings.db` and native `.m4a` / `.qta` media).
 
-> **Project Status — Phase 1 (Specification Scaffold):** This repository currently defines the Phase 1 documentation and implementation contract prior to Phase 2 code and test implementation. Commands, flags, schemas, and exit codes below specify the exact target contract for `voice-memos`.
+> **Project Status:** The core CLI (`doctor`, `list`, `get`, `export`) and offline synthetic `pytest` suite are implemented and verified locally (editable `uv` install, `voice-memos` and `python -m voice_memos_skill` entry points, synthetic SQLite/audio test suite, and read-only macOS smoke checks). The implementation is on a local feature branch pending remote CI execution and pull request merge to `master`.
 
 ## Why This Tool Exists
 
@@ -10,13 +10,13 @@ macOS Voice Memos stores recording metadata in a Core Data SQLite database (`Clo
 
 Scanning that directory with `find` or `ls` is unreliable: when a user deletes a recording in Voice Memos, the audio file often remains on disk until macOS purges it later. Only the SQLite `ZCLOUDRECORDING.ZEVICTIONDATE` column reliably distinguishes active recordings from deleted ones. `voice-memos` queries `CloudRecordings.db` in read-only mode (preserving SQLite WAL visibility), pairs each row with its local file state, and exports only active, locally available recordings in their native audio format.
 
-## Features (Implementation Contract)
+## Features
 
 - **Zero runtime dependencies:** Python 3.11+ standard library only at runtime (`pytest` for development tests).
 - **Authoritative deletion filtering:** Uses `ZCLOUDRECORDING.ZEVICTIONDATE` (matching `VoiceMemos.framework`'s `RCQueryManager` predicates) rather than guessing from filenames or `ZFLAGS`.
 - **Safe read-only database access:** Opens `CloudRecordings.db` via SQLite URI `mode=ro` so live WAL changes remain visible and missing databases are never created.
 - **Native audio export:** Copies locally available `.m4a` / `.qta` audio to an explicit `--output-dir` with SHA-256 verification, refusing deleted or non-local recordings and never overwriting differing files.
-- **Deterministic JSON output:** Every invocation prints a single JSON envelope to `stdout` (both on success and on error), keeping diagnostic messages strictly on `stderr`.
+- **Deterministic JSON output:** Every invocation (except `--help` and `--version`) prints a single JSON envelope to `stdout` (both on success and on error), keeping diagnostic messages strictly on `stderr`.
 
 ## Installation
 
@@ -28,7 +28,7 @@ source .venv/bin/activate
 uv pip install -e '.[dev]'
 ```
 
-Once implemented and installed, the CLI can be invoked either as `voice-memos` or `python -m voice_memos_skill`.
+Once installed, the CLI can be invoked either as `voice-memos` or `python -m voice_memos_skill`.
 
 ### Installing as an Agent Skill
 
@@ -108,14 +108,14 @@ voice-memos --source /path/to/Recordings export <recording_id> --output-dir ./ex
 
 Export rules:
 - Only `active` recordings with `audio.availability == "local"` can be exported. Deleted recordings and `not_local` recordings are rejected with exit code `4`, even if a leftover audio file still exists on disk.
-- The original file extension (`.m4a`, `.qta`, etc.) is preserved without transcoding (`ffmpeg` is not required).
+- The original native file extension (`.m4a` or `.qta`) is preserved without transcoding (`ffmpeg` is not required).
 - Output filenames are sanitized from `<recording_id><ext>`.
 - If the destination file already exists with identical size and SHA-256 digest, `export` succeeds (`exit 0`) with `status: "already_exists"`.
 - If the destination file already exists with different content, `export` fails (`exit 5`) with a conflict error and never overwrites it.
 
 ## JSON Envelope & Exit Codes
 
-All commands emit a single JSON object to `stdout`:
+All commands (except `--help` and `--version`) emit a single JSON object to `stdout`:
 
 ```json
 {
