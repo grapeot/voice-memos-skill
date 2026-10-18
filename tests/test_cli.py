@@ -480,7 +480,7 @@ def test_titles_empty_ids_unknown_recording_and_source_immutability(tmp_path):
         source / "CloudRecordings.db",
         [
             row("labeled", "labeled.m4a", created, label="Morning Idea", encrypted=b"\x02blob"),
-            row("fallback", "fallback.m4a", created - 1, label="", encrypted="Fallback title"),
+            row("fallback", "fallback.m4a", created - 1, label="2026-10-17T14:22:10Z", encrypted="Fallback title"),
             row("blob-only", "blob.m4a", created - 2, encrypted=b"\x03blob"),
             row("", "blank.m4a", created - 3),
             row(None, "null.m4a", created - 4),

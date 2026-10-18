@@ -1,6 +1,6 @@
 # Voice Memos Skill (`voice-memos`)
 
-A lightweight, read-safe Python CLI and AI agent skill for inspecting and exporting local macOS Apple Voice Memos (`CloudRecordings.db` and native `.m4a` / `.qta` media).
+A lightweight Python CLI and AI agent skill for inspecting, exporting, and renaming local macOS Apple Voice Memos (`CloudRecordings.db` and native `.m4a` / `.qta` media).
 
 > **Project Status:** Core CLI implemented; local tests, cross-platform CI, and read-only macOS metadata smoke verified.
 
@@ -16,6 +16,7 @@ Scanning that directory with `find` or `ls` is unreliable: when a user deletes a
 - **Authoritative deletion filtering:** Uses `ZCLOUDRECORDING.ZEVICTIONDATE` (matching `VoiceMemos.framework`'s `RCQueryManager` predicates) rather than guessing from filenames or `ZFLAGS`.
 - **Safe read-only database access:** Opens `CloudRecordings.db` via SQLite URI `mode=ro` so live WAL changes remain visible and missing databases are never created.
 - **Native audio export:** Copies locally available `.m4a` / `.qta` audio to an explicit `--output-dir` with SHA-256 verification, refusing deleted or non-local recordings and never overwriting differing files.
+- **Native title updates:** Renames an active recording by ID using Apple's private VoiceMemos model APIs and Core Data save mechanism, without UI automation or SQL updates. Requires macOS and Xcode Command Line Tools; private API compatibility is checked at runtime.
 - **Deterministic JSON output:** Every invocation (except `--help` and `--version`) prints a single JSON envelope to `stdout` (both on success and on error), keeping diagnostic messages strictly on `stderr`.
 
 ## Installation
@@ -43,7 +44,7 @@ To install this tool into an AI coding assistant (Codex, Claude Code, Cursor, or
 Root options (`--source`, `--db`, `--version`) must be placed **before** the subcommand.
 
 ```text
-voice-memos [--source DIR] [--db PATH] [--version] {doctor,list,get,export} ...
+voice-memos [--source DIR] [--db PATH] [--version] {doctor,list,get,export,rename} ...
 ```
 
 ### Root Options
@@ -113,6 +114,19 @@ Export rules:
 - If the destination file already exists with identical size and SHA-256 digest, `export` succeeds (`exit 0`) with `status: "already_exists"`.
 - If the destination file already exists with different content, `export` fails (`exit 5`) with a conflict error and never overwrites it.
 
+#### `rename` — Update an active recording's title
+
+```bash
+voice-memos rename <recording_id> --title "Meeting notes" --dry-run
+voice-memos rename <recording_id> --title "Meeting notes"
+```
+
+`rename` requires the default live source/database and an exact active recording ID. Duplicate titles are supported because selection uses the ID. Titles must be non-blank and contain no control characters. Audio does not need to be downloaded. The command does not rename the underlying audio file.
+
+Dry-run loads the native store read-only and returns `status: "planned"` without saving. A real update returns `status: "renamed"` only after reading the requested title back for the same ID; an identical title returns `status: "unchanged"`. The result includes `recording_id`, `old_title`, `title`, `dry_run`, `status`, and `verified`.
+
+The bundled Objective-C helper is compiled into a private temporary directory for each invocation. Install Xcode Command Line Tools (`xcode-select --install`) if needed. No Accessibility permission is required. The helper uses Apple's private model/container setup with a local Core Data store, persistent history tracking, and remote-change notifications; automatic migrations are disabled. Apple can change these private APIs. Verification confirms local persistence, not completed iCloud synchronization to another device.
+
 ## JSON Envelope & Exit Codes
 
 All commands (except `--help` and `--version`) emit a single JSON object to `stdout`:
@@ -162,8 +176,9 @@ On failure, `stdout` still receives a structured JSON envelope while human-orien
 | `0` | Success (including empty `list` results, `export --dry-run`, and `already_exists` exports) |
 | `2` | Invalid CLI arguments or option values |
 | `3` | Source directory, SQLite database, permission, or schema validation error |
-| `4` | Recording not found, recording is `deleted` (on `export`), or audio is `not_local` (on `export`) |
+| `4` | Recording not found, recording is `deleted` (on `export`/`rename`), or audio is `not_local` (on `export`) |
 | `5` | Destination directory error, file copy verification failure, or existing file conflict |
+| `6` | Native rename unsupported, build/runtime failure, save failure, or readback mismatch |
 
 ## macOS Permissions (TCC / Full Disk Access)
 

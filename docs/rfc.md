@@ -7,7 +7,7 @@
 
 `voice_memos_skill` is a single-package Python CLI with zero third-party runtime dependencies. It reads macOS Apple Voice Memos metadata from `CloudRecordings.db` using Python's built-in `sqlite3` module, resolves local audio file metadata within the configured `--source` directory, and optionally copies active local audio files to a destination directory during `export`.
 
-No Objective-C bridge or runtime Apple private framework loading is used. Instead, the CLI queries the observed `ZCLOUDRECORDING` SQLite table directly (an undocumented private Apple Core Data schema) and fails explicitly if required columns are missing.
+Inspection/export query the observed `ZCLOUDRECORDING` SQLite table directly (an undocumented private Apple Core Data schema) and fail explicitly if required columns are missing. `rename` additionally compiles a bundled Objective-C helper and loads Apple's private Catalyst VoiceMemos framework; see section 8.
 
 ## 2. Apple Voice Memos Storage & Schema Authority
 
@@ -31,10 +31,10 @@ The CLI queries table `ZCLOUDRECORDING` in `CloudRecordings.db`.
 | `ZDATE` | Required | Core Data creation timestamp (seconds since `2001-01-01T00:00:00Z`). Converted to Unix epoch by adding `978307200`. |
 | `ZDURATION` | Required | Recording duration in seconds (`duration_seconds`), read directly from DB metadata (not probed from media). |
 | `ZEVICTIONDATE` | Required | Core Data deletion/eviction timestamp. `NULL` means `state = "active"`; non-`NULL` means `state = "deleted"`. |
-| `ZCUSTOMLABEL` | Optional | User-visible custom label string. |
-| `ZENCRYPTEDTITLE` | Optional | Fallback title column if stored as a plain SQLite text string; ignored if `NULL`, bytes/blob, or missing. |
+| `ZCUSTOMLABEL` | Optional | Legacy title fallback; may hold a migration/date placeholder. |
+| `ZENCRYPTEDTITLE` | Optional | Preferred display title when stored as a plain SQLite text string; ignored if `NULL`, bytes/blob, or missing. |
 
-**Title resolution:** If `ZCUSTOMLABEL` is present in the schema and holds a non-empty `str`, use it as `title`. Otherwise, if `ZENCRYPTEDTITLE` is present and holds a non-empty `str`, use it. Otherwise `title` is `null`. The CLI does not perform encryption key lookup or ciphertext decoding.
+**Title resolution:** Prefer a non-empty plain-text `ZENCRYPTEDTITLE`, then a non-empty `ZCUSTOMLABEL`; otherwise return `null`. Native `RCCloudRecording.title` inspection confirmed that modern stores can retain a date placeholder in `customLabel` alongside the actual display name in `encryptedTitle`. The CLI does not perform encryption key lookup or ciphertext decoding.
 
 ### 2.3 Deletion State Authority (`ZEVICTIONDATE`, Not `ZFLAGS`)
 
@@ -244,7 +244,7 @@ Every command execution (except `--help` / `--version`) outputs a single JSON do
 - **Success:**
   ```json
   {
-    "command": "doctor|list|get|export",
+    "command": "doctor|list|get|export|rename",
     "data": { ... },
     "error": null
   }
@@ -252,7 +252,7 @@ Every command execution (except `--help` / `--version`) outputs a single JSON do
 - **Error:**
   ```json
   {
-    "command": "doctor|list|get|export|cli",
+    "command": "doctor|list|get|export|rename|cli",
     "data": null,
     "error": {
       "code": "ERROR_CODE",
@@ -272,3 +272,16 @@ Diagnostic logs or error summaries may also be printed to `stderr`, but `stdout`
 | `3` | Source / database / schema access error | `SOURCE_NOT_FOUND`, `DB_NOT_FOUND`, `DB_OPEN_ERROR`, `SCHEMA_UNSUPPORTED` |
 | `4` | Recording missing, deleted, or audio not local | `RECORDING_NOT_FOUND`, `RECORDING_DELETED`, `AUDIO_NOT_LOCAL` |
 | `5` | Destination directory, conflict, or copy failure | `DESTINATION_CONFLICT`, `DESTINATION_ERROR`, `COPY_VERIFICATION_FAILED` |
+| `6` | Native rename build/runtime/save/readback failure | `RENAME_UNSUPPORTED`, `RENAME_BUILD_FAILED`, `RENAME_NATIVE_ERROR`, `RENAME_TIMEOUT`, `RENAME_SAVE_FAILED`, `RENAME_VERIFICATION_FAILED` |
+
+## 8. Native Rename
+
+Invocation: `voice-memos rename <recording_id> --title TITLE [--dry-run]`.
+
+The Python boundary validates a non-blank title without control characters, rejects alternate source/database paths, and checks that the ID is active. It compiles packaged `rename_native.m` into a private temporary directory using `xcrun clang` with a Catalyst target matching `arm64` or `x86_64`, then passes all values as separate process arguments. Compile/run timeouts are 60/20 seconds. Temporary binaries are removed after invocation. No Accessibility grant, entitlement modification, or third-party runtime package is used.
+
+The helper loads `/System/iOSSupport/System/Library/PrivateFrameworks/VoiceMemos.framework/VoiceMemos` and validates required private selectors. Apple's stock `RCPersistentContainer` selects an entitlement-restricted XPC store for client processes. A process-local subclass overrides only `storeDescriptionWithURL:` to request Apple's own `storeDescriptionForURL:isXPCClient:configuration:` with `isXPCClient = NO`. The container still supplies its native model/context setup, including the model adjustments needed to match the existing store. The description retains persistent history tracking and remote-change notifications; automatic/inferred migrations are explicitly disabled. Dry-run sets the store read-only.
+
+Within the background model's `performBlockAndWait:`, lookup uses `recordingsWithUniqueID:` and requires exactly one non-deleted record. Title changes go through `RCSavedRecordingsModel.setTitle:ofRecording:`. This method may save immediately; call `saveIfNecessary:` only if the context still has changes, and treat remaining changes or an NSError as failure. A false return with no pending changes is not a save failure. The context uses error-on-conflict merge policy and transaction author `voice-memos-skill`.
+
+Success payload: `recording_id`, `old_title` (from the native model), `title`, `dry_run`, `status` (`planned`, `renamed`, `unchanged`), and `verified`. Real commands independently reload the SQLite metadata read-only and require the same ID to remain active with the requested title. No raw SQL update or audio filename/content mutation occurs. Native helper errors return structured JSON through CLI exit code 6; initial Python missing/deleted checks retain exit code 4. `verified` confirms local persistence only, not completion of iCloud synchronization. Private API compatibility can change with macOS releases.

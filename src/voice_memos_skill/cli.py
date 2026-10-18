@@ -8,6 +8,7 @@ from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from voice_memos_skill import __version__
+from voice_memos_skill.rename import rename_recording, validate_title
 from voice_memos_skill.store import (
     DEFAULT_SOURCE,
     CliError,
@@ -49,6 +50,10 @@ def build_parser() -> JsonArgumentParser:
     export_parser.add_argument("recording_id")
     export_parser.add_argument("--output-dir", required=True, metavar="DIR")
     export_parser.add_argument("--dry-run", action="store_true")
+    rename_parser = subcommands.add_parser("rename", help="Rename an active recording through Voice Memos on macOS", command="rename")
+    rename_parser.add_argument("recording_id")
+    rename_parser.add_argument("--title", required=True)
+    rename_parser.add_argument("--dry-run", action="store_true")
     return parser
 
 
@@ -72,6 +77,9 @@ def run_command(args: argparse.Namespace) -> dict[str, Any]:
         limit = parse_limit(args.limit)
     source = resolve_source(args.source)
     db_path = resolve_db_path(source, args.db)
+    if args.command == "rename":
+        validate_title(args.title)
+        return rename_recording(source, db_path, args.recording_id, args.title, args.dry_run)
     recordings = load_recordings(source, db_path)
     if args.command == "doctor":
         active = sum(recording["state"] == "active" for recording in recordings)

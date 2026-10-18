@@ -1,7 +1,7 @@
 [project]
 name = "voice-memos-skill"
 version = "0.1.0"
-description = "Inspect and export local macOS Apple Voice Memos"
+description = "Inspect, export, and rename local macOS Apple Voice Memos"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -21,7 +21,7 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-voice_memos_skill = ["py.typed"]
+voice_memos_skill = ["py.typed", "*.m"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

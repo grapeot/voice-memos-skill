@@ -3,9 +3,15 @@
 > **Status:** Core CLI implemented; local tests, cross-platform CI, and read-only macOS metadata smoke verified
 > **Test Runner:** `python -m pytest` (offline, zero network access)
 
-The offline synthetic `pytest` suite in `tests/` (16 test cases, including 3 targeted error-handling regressions) is implemented and passes locally via `uv` (`python -m pytest`) as well as in Linux and macOS GitHub Actions CI, exercising both `python -m voice_memos_skill` and the `voice-memos` console script entry point against synthetic SQLite databases and synthetic `.m4a` / `.qta` byte fixtures.
+The original 16-case core CLI suite passed locally and in Linux/macOS GitHub Actions CI. The native rename extension brings the local suite to 40 cases (six native tests skip on Linux), exercising both CLI entry points, synthetic SQLite/audio fixtures, mocked subprocess boundaries, and compiled-native validation. See `docs/working.md` for current release verification.
 
 ## 1. Testing Philosophy & Fixture Rules
+
+### Native rename extension (2026-10-18)
+
+`tests/test_rename.py` covers argument validation, live-source binding, deleted/missing targets, duplicate-title exact-ID selection, read-only dry-run dispatch, same-ID readback mismatch, subprocess argument transport, temporary binary cleanup, and structured compiler/runtime/timeout errors using mocked native calls. `tests/test_native.py` compiles the actual Catalyst helper on macOS and validates missing-store/no-create, invalid-title/no-open, invalid-mode handling, and Python/native Unicode title-validation parity (including combination emoji and zero-width format characters); these native checks skip on Linux.
+
+An explicitly authorized live test renamed a short test recording through the private native model. Same-ID SQLite title readback, unchanged audio SHA-256, unchanged non-title metadata and other recording titles, and idempotent `unchanged` behavior passed. No private recording data is included in the repository. This test validates local persistence, not iCloud delivery to another device. Native model mutation itself is covered by this live test rather than the synthetic SQLite fixtures, which are not real Core Data stores.
 
 1. **100% synthetic fixtures in automated tests:** All unit and integration tests create temporary directories and synthetic SQLite `CloudRecordings.db` databases on the fly using Python's `sqlite3` and `tmp_path`.
 2. **Arbitrary byte payloads for audio fixtures:** Test `.m4a` and `.qta` files contain deterministic synthetic byte sequences sufficient to verify file existence, byte size, SHA-256 hashing, and copy integrity. Tests explicitly do **not** run `ffmpeg` or perform audio codec quality decoding.

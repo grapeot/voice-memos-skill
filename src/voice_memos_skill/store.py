@@ -234,14 +234,16 @@ def _recording_from_row(row: sqlite3.Row, names: set[str], source: Path) -> dict
 
 
 def _title(row: sqlite3.Row, names: set[str]) -> str | None:
-    if "ZCUSTOMLABEL" in names:
-        label = row["ZCUSTOMLABEL"]
-        if isinstance(label, str) and label:
-            return label
+    # Modern Voice Memos uses encryptedTitle as the display title even when
+    # customLabel still contains a migration/date placeholder.
     if "ZENCRYPTEDTITLE" in names:
         encrypted = row["ZENCRYPTEDTITLE"]
         if isinstance(encrypted, str) and encrypted:
             return encrypted
+    if "ZCUSTOMLABEL" in names:
+        label = row["ZCUSTOMLABEL"]
+        if isinstance(label, str) and label:
+            return label
     return None
 
 

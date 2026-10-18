@@ -1,18 +1,18 @@
 ---
 name: voice-memos
-description: List, inspect, and export local macOS Apple Voice Memos (including deleted-state inspection and native .m4a/.qta export) via the read-safe voice-memos CLI.
+description: List, inspect, export, and rename local macOS Apple Voice Memos, including deleted-state inspection, native .m4a/.qta export, and private native API title updates by recording ID.
 ---
 
 # Apple Voice Memos Skill (`voice-memos`)
 
 ## Goal & Success Criteria
 
-Inspect and export local macOS Apple Voice Memos deterministically without mutating the source container or accidentally ingesting deleted recordings whose audio files still remain on disk.
+Inspect and export local macOS Apple Voice Memos without mutating source application data or accidentally ingesting deleted recordings. Explicit `rename` calls may update an active recording's title through Apple's native private APIs.
 
 An operation succeeds when:
 1. Metadata and lifecycle state (`active` vs. `deleted`) are read from `CloudRecordings.db` (`ZCLOUDRECORDING.ZEVICTIONDATE`) via `voice-memos`, never by globbing `.m4a` files in the container directory.
 2. Exported audio files come only from `active` recordings with `audio.availability == "local"`, copied into an explicit `--output-dir` in their native `.m4a` / `.qta` format with verified byte size and SHA-256 digest.
-3. The Voice Memos source application data (`CloudRecordings.db` and media files in `~/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings`) remains untouched.
+3. Inspection/export leave source application data untouched. `rename` preserves source audio and verifies the new title by the same recording ID. Local persistence does not prove completed iCloud sync.
 
 ## Critical Pitfall: On-Disk Residue vs. Deleted State
 
@@ -59,6 +59,10 @@ voice-memos export <recording_id> --output-dir ./exports
 # 5. Override source directory or database path (root flags go BEFORE subcommand)
 voice-memos --source /path/to/Recordings list --state all
 voice-memos --source /path/to/Recordings --db /path/to/CloudRecordings.db doctor
+
+# 6. Rename an active recording using private native APIs (default live source only)
+voice-memos rename <recording_id> --title "Meeting notes" --dry-run
+voice-memos rename <recording_id> --title "Meeting notes"
 ```
 
 ### Subcommand & Option Summary
@@ -71,6 +75,7 @@ voice-memos --source /path/to/Recordings --db /path/to/CloudRecordings.db doctor
 - **`list`**: `--state {active,deleted,all}` (default `active`), `--date YYYY-MM-DD`, `--timezone IANA_NAME` (default `UTC`), `--limit N` (default `50`). Duration (`duration_seconds`) comes from `ZDURATION` in SQLite.
 - **`get <recording_id>`**: Returns normalized metadata and `audio` (`availability`, `path`, `size_bytes`) for any `active` or `deleted` recording.
 - **`export <recording_id> --output-dir DIR [--dry-run]`**: Copies native `.m4a` / `.qta` audio for an `active` + `local` recording to `<output-dir>/<sanitized_id><ext>`. Returns `status` (`planned` | `exported` | `already_exists`), `source_size_bytes`, `output_size_bytes`, `sha256`, and `verified`. Does not transcode or decode audio.
+- **`rename <recording_id> --title TITLE [--dry-run]`**: Updates an active recording's App title by exact ID; underlying audio filename/content is unchanged. Default live source/database only, non-blank title without control characters. Run dry-run before mutation. Requires macOS and Xcode Command Line Tools (`xcode-select --install`); no Accessibility permission. Compiles the bundled native helper into a private temporary directory. Uses private `RCSavedRecordingsModel` title setters/Core Data saves with history and notifications, not SQL updates or UI scripting. Dry-run opens the store read-only; migrations are disabled. Returns `recording_id`, `old_title`, `title`, `dry_run`, `status` (`planned` | `renamed` | `unchanged`), and `verified` (local same-ID readback, not iCloud sync). Private API changes may break compatibility; inspect current state before retrying a timeout or verification error.
 
 ## Output Envelope & Exit Codes
 
@@ -79,5 +84,6 @@ All commands (except `--help` and `--version`) print a single JSON envelope to `
 - `0`: Success (including empty `list`, `export --dry-run`, or byte-identical `already_exists`)
 - `2`: Invalid CLI arguments / flag values
 - `3`: Source directory, SQLite database, TCC permission, or schema error (if accessing the default macOS container fails with exit code `3`, the user's terminal app may need Full Disk Access in **System Settings → Privacy & Security → Full Disk Access**)
-- `4`: Recording not found, recording is `deleted` (on `export`), or audio is `not_local` (on `export`)
+- `4`: Recording not found, recording is `deleted` (on `export`/`rename`), or audio is `not_local` (on `export`)
 - `5`: Destination error, copy verification mismatch, or existing destination file with differing bytes (never overwritten)
+- `6`: Native rename unsupported, build/runtime failure, save failure, or readback mismatch
