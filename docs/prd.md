@@ -19,14 +19,15 @@ Users and AI agents trying to list or export Voice Memos face three recurring pr
 1. **Authoritative metadata inspection:** Read `CloudRecordings.db` (`ZCLOUDRECORDING`) in read-only mode with full SQLite WAL visibility and determine `state` (`active` vs. `deleted`) strictly from `ZEVICTIONDATE`.
 2. **Independent media availability reporting:** Report `audio.availability` (`local` vs. `not_local`) independently from `state`, so callers can see whether a file is present on disk without confusing disk residue for an active recording.
 3. **Safe native audio export:** Copy locally available `.m4a` / `.qta` files for `active` recordings to a user-specified `--output-dir` with size and SHA-256 verification, refusing `deleted` or `not_local` recordings and refusing to overwrite differing existing files.
-4. **Machine-readable CLI contract:** Emit a uniform JSON envelope to `stdout` on both success and failure (except `--help` and `--version`), write diagnostics only to `stderr`, and return deterministic exit codes (`0`, `2`, `3`, `4`, `5`).
+4. **Machine-readable CLI contract:** Emit a uniform JSON envelope to `stdout` on both success and failure (except `--help` and `--version`), write diagnostics only to `stderr`, and return deterministic exit codes (`0`, `2`, `3`, `4`, `5`, `6`).
 5. **Single-skill agent ergonomics:** Provide one concise root skill (`skills/voice-memos/SKILL.md`) that AI coding agents (Codex, Claude Code, Cursor, OpenCode) can install and invoke without multi-step ceremony.
+6. **Explicit native rename:** Update an active recording's title by exact ID through Apple's private native APIs; preserve audio and verify local same-ID persistence. No UI scripting or direct SQL writes.
 
 ## 3. Non-Goals (Out of Scope)
 
 To keep the tool small, reliable, and audit-friendly, the following are explicitly out of scope:
 - **No deleted-recording export opt-in:** `export` never exports `deleted` recordings; there is no `--include-deleted` or `--force` flag on `export`.
-- **No source mutation or sync:** The CLI never modifies `CloudRecordings.db`, never deletes or moves source audio files, and never triggers iCloud sync or cloud downloads.
+- **No general source mutation or sync:** Only explicit `rename` may change a recording title using native Core Data saves. The CLI never deletes or moves source audio files, forces iCloud synchronization/downloads, or claims remote sync completion.
 - **No background daemon or file watcher:** Every invocation is a single synchronous command.
 - **No audio transcoding or probing:** Native `.m4a` and `.qta` extensions are preserved as-is; there is no `ffmpeg` dependency, no waveform/codec decoding, and `duration_seconds` comes directly from `ZDURATION` in `CloudRecordings.db`.
 - **No speech-to-text (ASR) or downstream pipeline orchestration:** Transcription, batch ingestion, and downstream note routing belong to separate tools.
@@ -50,6 +51,7 @@ To keep the tool small, reliable, and audit-friendly, the following are explicit
 | `list` | List recordings filtered by `--state`, `--date` (in `--timezone`), and `--limit`, ordered newest-first with ID tiebreaker | Read-only | No |
 | `get` | Fetch normalized metadata and local file availability for a single `recording_id` (`active` or `deleted`) | Read-only | No |
 | `export` | Copy native local audio for an `active` recording to `--output-dir` (or preview with `--dry-run`) | Read-only | Yes (unless `--dry-run`) |
+| `rename` | Update an active recording's title by ID through private native APIs | Read-only dry-run; native Core Data save otherwise | No exported file; source title changes |
 
 ## 6. Acceptance Criteria
 
@@ -57,4 +59,4 @@ To keep the tool small, reliable, and audit-friendly, the following are explicit
 2. Deleted recordings (`ZEVICTIONDATE IS NOT NULL`) with local audio files still on disk are excluded from default `voice-memos list`, inspectable via `voice-memos list --state deleted|all` and `voice-memos get <id>`, and rejected by `voice-memos export <id>` with exit code `4`.
 3. Active recordings whose audio file is absent on disk report `state: "active"` and `audio.availability: "not_local"`, and are rejected by `voice-memos export <id>` with exit code `4`.
 4. Exporting an active local recording twice to the same `--output-dir` returns `status: "exported"` on the first run and `status: "already_exists"` on the second run (both exit `0`), while a differing pre-existing destination file fails with exit code `5`.
-5. Source application data (`CloudRecordings.db` and media files) is never mutated across any command.
+5. Source application data is untouched by inspection/export. Only explicit `rename` may change title metadata; source audio remains unchanged. Rename requires the default live store, disables migrations, rejects deleted targets, and verifies local same-ID readback.

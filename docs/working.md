@@ -24,6 +24,13 @@
 
 ## Changelog
 
+### 2026-10-18 — Native Rename Implementation (Review/Release Pending)
+- Added `rename <recording_id> --title TITLE [--dry-run]` using a bundled Objective-C helper and Apple's private `RCPersistentContainer` / `RCSavedRecordingsModel` APIs. Removed the preliminary UI backend. No Accessibility permission, SQL updates, or entitlement modification is required.
+- The stock XPC store rejected the standalone probe. A process-local container subclass selects Apple's own local store description while retaining native model/context setup, history tracking, and remote notifications. Store migrations are disabled; dry-run opens read-only. Exact-ID selection supports duplicate titles.
+- Local offline suite: 40 tests passed, including native compilation and Python/native Unicode validation parity. A built wheel included the native source and passed an isolated-install live dry-run. Real authorized test recording renamed successfully; same-ID readback, unchanged audio SHA-256, unchanged non-title metadata/other recording titles, and repeat-command `unchanged` behavior passed. A read-only native history query confirmed the rename transactions were recorded. iCloud synchronization to another device was not verified.
+- Fixed display-title resolution to prefer non-empty plain-text `encryptedTitle` over legacy `customLabel` placeholders. The native title setter can save immediately; `saveIfNecessary:` returning NO with no changes is not an error.
+- Independent GPT-6.1 SOL Fast review found no blocking issues and one P2 Unicode validation mismatch. Fixed the mismatch: Foundation's control-character set included format characters such as emoji ZWJ, unlike Python's `Cc` check. Added an actual compiled-native parity regression. Cross-platform CI, PR, and merge remain pending.
+
 ### 2026-10-17 — Phase 2 Core CLI Implementation, Local Verification & CI Setup Fix
 - Implemented the core CLI package (`src/voice_memos_skill/cli.py`, `store.py`, `__main__.py`, `__init__.py`) and installed it via `uv` (`voice-memos` and `python -m voice_memos_skill`).
 - Implemented and passed the offline synthetic `pytest` suite covering deleted+local regression, active+`not_local`, arbitrary filenames and path containment, UTC/local/DST date boundaries, same-timestamp deterministic tiebreaker ordering, `--dry-run` without directory creation, native `.m4a`/`.qta` byte copy and SHA-256 verification, repeat export idempotency and conflict detection, live SQLite WAL visibility, missing DB/schema errors, and source immutability (additional targeted JSON error-handling test review in progress).
@@ -46,4 +53,6 @@
 4. **Missing local audio is `not_local`, not `cloud_only`:**
    When an active database row has no local file on disk, the local SQLite database alone cannot prove whether the file is stored in iCloud or missing for another reason. Labeling availability as `not_local` avoids overclaiming.
 5. **`astral-sh/setup-uv` with `python-version` already creates `.venv` in GitHub Actions:**
-   Running an explicit `uv venv` step after `setup-uv` (when configured with `python-version`) fails in CI because the virtual environment already exists; `uv pip install` and `pytest` should use the environment directly.
+    Running an explicit `uv venv` step after `setup-uv` (when configured with `python-version`) fails in CI because the virtual environment already exists; `uv pip install` and `pytest` should use the environment directly.
+6. **Use the native model for title semantics and save behavior:**
+    `customLabel` may contain only a date placeholder while `encryptedTitle` holds the display title. `setTitle:ofRecording:` may save immediately, making a subsequent `saveIfNecessary:` return NO simply because no save is needed.

@@ -2,17 +2,18 @@
 
 ## Project Overview
 
-`voice-memos-skill` (public GitHub repository: `grapeot/voice-memos-skill`) is a small, standalone MIT-licensed Python CLI (`voice-memos` / `python -m voice_memos_skill`) and AI agent skill (`skills/voice-memos/SKILL.md`) for inspecting and exporting local macOS Apple Voice Memos.
+`voice-memos-skill` (public GitHub repository: `grapeot/voice-memos-skill`) is a small, standalone MIT-licensed Python CLI (`voice-memos` / `python -m voice_memos_skill`) and AI agent skill (`skills/voice-memos/SKILL.md`) for inspecting, exporting, and renaming local macOS Apple Voice Memos.
 
 > **Current Status:** Core CLI implemented; local tests, cross-platform CI, and read-only macOS metadata smoke verified. `master` is protected (pull request required, `0` approvals, `enforce_admins=true`, and Linux/macOS CI checks required).
 
 ## Core Scope Discipline
 
 Keep the project minimal and focused on its exact contract:
-- **Runtime:** Python 3.11+ using the Python standard library only (`sqlite3`, `pathlib`, `hashlib`, `shutil`, `zoneinfo`, `datetime`, `argparse`, `json`). `pytest` is the only development test dependency.
+- **Runtime:** Python 3.11+ standard library only. `rename` additionally compiles a bundled Objective-C helper using Xcode Command Line Tools and loads Apple's private VoiceMemos framework. `pytest` is the only development test dependency.
 - **Entry points:** `voice-memos` and `python -m voice_memos_skill`.
 - **Root options (must appear before the subcommand):** `--source DIR`, `--db PATH`, `--version`.
-- **Subcommands (exact set):** `doctor`, `list`, `get`, `export`.
+- **Subcommands (exact set):** `doctor`, `list`, `get`, `export`, `rename`.
+- **Rename boundary:** Use private native model APIs and Core Data saves with history tracking and remote notifications; never SQL updates or UI scripting. Require the default live source/database, an exact active recording ID, a non-blank title, and same-ID readback. Disable automatic store migrations. No entitlement spoofing or guaranteed iCloud completion.
 - **Non-goals:** Do not add deleted-recording export opt-in flags, background daemons, iCloud download triggers, audio transcoding (`ffmpeg`), speech-to-text/ASR, batch orchestration, manifest frameworks, or integration with external pipelines.
 
 ## Repository Layout
